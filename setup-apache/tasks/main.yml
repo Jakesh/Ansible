@@ -1,0 +1,41 @@
+---
+- name: install package
+  yum:
+    name: httpd
+    state: installed
+  when: ansible_os_family == "RedHat"
+  notify: start httpd service
+
+- name: install apache2
+  apt:
+    name: apache2
+    state: present
+  when: ansible_os_family == "Debian"
+  notify: start apache2
+    
+#below code is used in copy tasks to playbook concept
+- name: copy index.html
+  copy:
+    src: /opt/ansible/index.html
+    dest: /var/www/html
+    mode: 0666
+  when: ansible_os_family == "Debian"
+
+#we are using module to edit a file to change a port from 8080 to 8081
+- name: Ensure the default Apache port is {{ port }}
+  ansible.builtin.lineinfile:
+    path: /etc/httpd/conf/httpd.conf
+    regexp: '^Listen '
+    insertafter: '^#Listen '
+    line: Listen {{ port }}
+  when: ansible_os_family == "RedHat"
+  notify: restart httpd
+
+- name: Ensure the default Apache port is {{ port }} in ubuntu
+  ansible.builtin.lineinfile:
+    path: /etc/apache2/ports.conf
+    regexp: '^Listen '
+    insertafter: '^# /etc/apache2/sites-enabled/000-default.conf '
+    line: Listen {{ port }}
+  when: ansible_os_family == "Debian"
+  notify: restart apache2

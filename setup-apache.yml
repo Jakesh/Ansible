@@ -1,0 +1,69 @@
+---
+- name: this playbook install httpd
+  hosts: all
+  become: true
+  vars: 
+    port: 8082
+  tasks:
+  - name: install package
+    yum:
+      name: httpd
+      state: installed
+    when: ansible_os_family == "RedHat"
+    notify: start httpd service
+
+  - name: install apache2
+    apt:
+      name: apache2
+      state: present
+    when: ansible_os_family == "Debian"
+    notify: start apache2
+    
+#below code is used in copy tasks to playbook concept
+  - name: copy index.html
+    copy:
+      src: /opt/ansible/index.html
+      dest: /var/www/html
+      mode: 0666
+    when: ansible_os_family == "Debian"
+
+#we are using module to edit a file to change a port from 8080 to 8081
+  - name: Ensure the default Apache port is {{ port }}
+    ansible.builtin.lineinfile:
+      path: /etc/httpd/conf/httpd.conf
+      regexp: '^Listen '
+      insertafter: '^#Listen '
+      line: Listen {{ port }}
+    when: ansible_os_family == "RedHat"
+    notify: restart httpd
+
+  - name: Ensure the default Apache port is {{ port }} in ubuntu
+    ansible.builtin.lineinfile:
+      path: /etc/apache2/ports.conf
+      regexp: '^Listen '
+      insertafter: '^# /etc/apache2/sites-enabled/000-default.conf '
+      line: Listen {{ port }}
+    when: ansible_os_family == "Debian"
+    notify: restart apache2
+
+#handler tasks should be mentioned at last or else it executes all other tasks with same handler  
+  handlers:
+  - name: start httpd service
+    service: 
+      name: httpd
+      state: started / stopped
+  
+  - name: start apache2
+    service: 
+      name: apache2
+      state: started / stopped
+
+  - name: restart httpd
+    service: 
+      name: httpd
+      state: restarted
+
+  - name: restart apache2
+    service: 
+      name: apache2
+      state: restarted
